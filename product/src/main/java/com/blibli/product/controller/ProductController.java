@@ -10,6 +10,6 @@ public class ProductController {
 
     @GetMapping("/get")
     public String getProduct(){
-        return "product page";
+        return "product page hvv x   j cj dj cj dj cjd j cjd cj dj cj";
     }
 }
