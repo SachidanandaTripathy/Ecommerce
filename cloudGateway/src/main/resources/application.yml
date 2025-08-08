@@ -1,5 +1,54 @@
+#server:
+#  port: 8080
+#  address: 0.0.0.0
+#
+#spring:
+#  application:
+#    name: API-GATEWAY-SERVICE
+#
+#  cloud:
+#    gateway:
+#      routes:
+#        - id: Customer
+#          uri: http://localhost:8081
+#          predicates:
+#            - Path=/auth/**
+#          filters:
+#            - name: AuthenticationFilter
+#        - id: product
+#          uri: http://10.20.4.3:8080
+#          predicates:
+#            - Path=/product/**
+#          filters:
+#            - name: AuthenticationFilter
+#        - id: seller
+#          uri: http://10.20.4.3:8383
+#          predicates:
+#            - Path=/seller/**
+#          filters:
+#            - name: AuthenticationFilter
+#        - id: cart
+#          uri: http://10.20.3.43:8081
+#          predicates:
+#            - Path=/api/cart/**
+#          filters:
+#            - name: AuthenticationFilter
+#        - id: orders
+#          uri: http://localhost:8085
+#          predicates:
+#            - Path=/orders/**
+#          filters:
+#            - name: AuthenticationFilter
+#        - id: search
+#          uri: http://10.20.4.3:8282
+#          predicates:
+#            - Path=/elasticsearch/**
+#          filters:
+#            - name: AuthenticationFilter
+
 server:
   port: 8080
+  address: 0.0.0.0
 
 spring:
   application:
@@ -15,33 +64,33 @@ spring:
           filters:
             - name: AuthenticationFilter
         - id: product
-          uri: http://localhost:8082
+          uri: http://10.20.4.3:8081
           predicates:
             - Path=/product/**
           filters:
             - name: AuthenticationFilter
         - id: seller
-          uri: http://localhost:8083
+          uri: http://10.20.4.3:8385
           predicates:
             - Path=/seller/**
           filters:
             - name: AuthenticationFilter
         - id: cart
-          uri: http://localhost:8084
+          uri: http://10.20.3.43:8085
           predicates:
-            - Path=/cart/**
+            - Path=/api/cart/**
           filters:
             - name: AuthenticationFilter
         - id: orders
-          uri: http://localhost:8085
+          uri: http://10.20.3.40:8085
           predicates:
-            - Path=/order/**
+            - Path=/orders/**
           filters:
             - name: AuthenticationFilter
         - id: search
-          uri: http://localhost:8086
+          uri: http://10.20.4.3:8281
           predicates:
-            - Path=/search/**
+            - Path=/elasticsearch/**
           filters:
             - name: AuthenticationFilter
 

@@ -1,43 +1,33 @@
 package com.trial.cloudGateway.util;
-import io.jsonwebtoken.*;
+import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
 import org.springframework.stereotype.Component;
+import org.springframework.web.bind.annotation.CrossOrigin;
 
 import java.security.Key;
 import java.util.Date;
-import java.util.function.Function;
+
 
 @Component
 public class JwtUtil {
 
     public static final String SECRET = "5367566B59703373367639792F423F4528482B4D6251655468576D5A71347437";
 
-    public boolean validateToken(String token, String expectedEmail) {
-        try {
-            Claims claims = extractAllClaims(token);
-
-            if (isTokenExpired(claims)) {
-                return false;
-            }
-
-            String email = claims.getSubject();
-            return email.equals(expectedEmail);
-
-        } catch (JwtException | IllegalArgumentException e) {
-            return false;
-        }
-    }
-
     public String extractUsername(String token) {
-        return extractClaim(token, Claims::getSubject);
+        return getClaims(token).getSubject();
     }
 
-    private boolean isTokenExpired(Claims claims) {
-        return claims.getExpiration().before(new Date());
+    public boolean validateToken(String token, String expectedEmail) {
+        final Claims claims = getClaims(token);
+        String username = claims.getSubject();
+        Date expiration = claims.getExpiration();
+
+        return username.equals(expectedEmail) && expiration.after(new Date());
     }
 
-    private Claims extractAllClaims(String token) {
+    private Claims getClaims(String token) {
         return Jwts.parserBuilder()
                 .setSigningKey(getSignKey())
                 .build()
@@ -48,10 +38,5 @@ public class JwtUtil {
     private Key getSignKey() {
         byte[] keyBytes = Decoders.BASE64.decode(SECRET);
         return Keys.hmacShaKeyFor(keyBytes);
-    }
-
-    private <T> T extractClaim(String token, Function<Claims, T> claimsResolver) {
-        final Claims claims = extractAllClaims(token);
-        return claimsResolver.apply(claims);
     }
 }

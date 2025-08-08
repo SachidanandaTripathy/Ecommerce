@@ -1,12 +1,12 @@
 package com.trial.cloudGateway.filter;
-import com.trial.cloudGateway.util.JwtUtil;
-import org.springframework.beans.factory.annotation.Autowired;
+
 import org.springframework.cloud.gateway.filter.GatewayFilter;
 import org.springframework.cloud.gateway.filter.factory.AbstractGatewayFilterFactory;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
+import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
 
@@ -16,42 +16,67 @@ import java.util.List;
 @Component
 public class AuthenticationFilter extends AbstractGatewayFilterFactory<AuthenticationFilter.Config> {
 
-    @Autowired
-    private RouteValidator validator;
+    private final WebClient webClient;
 
-    @Autowired
-    private JwtUtil jwtUtil;
-
-    public AuthenticationFilter() {
+    public AuthenticationFilter(WebClient.Builder webClientBuilder) {
         super(Config.class);
+        this.webClient = webClientBuilder.build();
     }
 
     @Override
     public GatewayFilter apply(Config config) {
         return (exchange, chain) -> {
-            if (validator.isSecured.test(exchange.getRequest())) {
-                List<String> authHeaders = exchange.getRequest().getHeaders().get(HttpHeaders.AUTHORIZATION);
-                if (authHeaders == null || authHeaders.isEmpty()) {
-                    return onError(exchange, "Missing Authorization header", HttpStatus.UNAUTHORIZED);
-                }
-
-                String authHeader = authHeaders.get(0);
-                if (!authHeader.startsWith("Bearer ")) {
-                    return onError(exchange, "Authorization header must start with Bearer", HttpStatus.UNAUTHORIZED);
-                }
-
-                String token = authHeader.substring(7);
-
-                try {
-                    String username = jwtUtil.extractUsername(token);
-                    if (username == null || username.isEmpty() || !jwtUtil.validateToken(token, username)) {
-                        return onError(exchange, "Invalid or expired token", HttpStatus.UNAUTHORIZED);
-                    }
-                } catch (Exception e) {
-                    return onError(exchange, "Invalid token", HttpStatus.UNAUTHORIZED);
-                }
+            String skipAuth = exchange.getRequest().getHeaders().getFirst("X-Skip-Auth");
+            if ("false".equalsIgnoreCase(skipAuth)) {
+                return chain.filter(exchange);
             }
-            return chain.filter(exchange);
+
+            List<String> authHeaders = exchange.getRequest().getHeaders().get(HttpHeaders.AUTHORIZATION);
+            if (authHeaders == null || authHeaders.isEmpty()) {
+                return onError(exchange, "Missing Authorization header", HttpStatus.UNAUTHORIZED);
+            }
+
+            String token = authHeaders.get(0);
+
+//            return Mono.fromCallable(() -> customerClient.validateToken(token))
+//                    .flatMap(customerEmail -> {
+//                        if (customerEmail == null || customerEmail.isEmpty()
+//                                || customerEmail.equalsIgnoreCase("User not found")
+//                                || customerEmail.equalsIgnoreCase("Token expired")
+//                                || customerEmail.equalsIgnoreCase("Invalid token")) {
+//                            return onError(exchange, "Invalid or expired token", HttpStatus.UNAUTHORIZED);
+//                        }
+//
+//                        ServerWebExchange mutatedExchange = exchange.mutate()
+//                                .request(builder -> builder.header("X-Customer-Email", customerEmail))
+//                                .build();
+//
+//                        return chain.filter(mutatedExchange);
+//                    })
+//                    .onErrorResume(e -> onError(exchange, "Token validation failed: " + e.getMessage(), HttpStatus.UNAUTHORIZED));
+
+            return webClient.get()
+                    .uri("http://localhost:8081/auth/validate?token=" + token)
+                    .retrieve()
+                    .onStatus(status -> status.isError(), clientResponse ->
+                            Mono.error(new RuntimeException("Token validation failed with status " + clientResponse.statusCode()))
+                    )
+                    .bodyToMono(String.class)
+                    .flatMap(customerEmail -> {
+                        if (customerEmail == null || customerEmail.isEmpty()
+                                || customerEmail.equalsIgnoreCase("User not found")
+                                || customerEmail.equalsIgnoreCase("Token expired")
+                                || customerEmail.equalsIgnoreCase("Invalid token")) {
+                            return onError(exchange, "Invalid or expired token", HttpStatus.UNAUTHORIZED);
+                        }
+
+                        ServerWebExchange mutatedExchange = exchange.mutate()
+                                .request(builder -> builder.header("X-Customer-Email", customerEmail))
+                                .build();
+
+                        return chain.filter(mutatedExchange);
+                    })
+                    .onErrorResume(e -> onError(exchange, "Token validation failed: " + e.getMessage(), HttpStatus.UNAUTHORIZED));
         };
     }
 
@@ -62,7 +87,6 @@ public class AuthenticationFilter extends AbstractGatewayFilterFactory<Authentic
 
         String body = "{\"error\": \"" + message + "\"}";
         var buffer = response.bufferFactory().wrap(body.getBytes(StandardCharsets.UTF_8));
-
         return response.writeWith(Mono.just(buffer));
     }
 

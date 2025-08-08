@@ -43,7 +43,7 @@ public class WebSecurity {
         return httpSecurity
                 .csrf(csrf -> csrf.disable())
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/auth/register", "/auth/login","/auth/validate").permitAll()
+                        .requestMatchers("/auth/register", "/auth/login","/auth/validate","/auth/customer/{customerEmail}").permitAll()
                 )
                 .build();
     }
